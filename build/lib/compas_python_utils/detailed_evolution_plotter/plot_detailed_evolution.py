@@ -4,7 +4,6 @@
 #                                                                 #
 ###################################################################
 
-
 import os
 import shutil
 import numpy as np
@@ -14,9 +13,6 @@ from matplotlib import rcParams
 import argparse
 import tempfile
 from pathlib import Path
-from astropy import units as u
-from astropy import constants as const
-
 
 IMG_DIR = Path(__file__).parent / "van_den_heuvel_figures"
 
@@ -32,7 +28,7 @@ def main():
     run_main_plotter(args.data_path, outdir=args.outdir, show=args.dont_show, use_latex=True)
 
 
-def run_main_plotter(data_path, outdir='.', show=True, use_latex=True, show_spin=False):
+def run_main_plotter(data_path, outdir='.', show=True, use_latex=True):
 
     ### Collect the raw data and mask for just the end-of-timesteps events
     RawData = h5.File(data_path, 'r')
@@ -48,7 +44,7 @@ def run_main_plotter(data_path, outdir='.', show=True, use_latex=True, show_spin
     printEvolutionaryHistory(events=events)
 
     ### Produce the two plots
-    detailed_fig = makeDetailedPlots(Data, events, outdir=outdir, use_latex=use_latex, show_spin=show_spin)
+    detailed_fig = makeDetailedPlots(Data, events, outdir=outdir, use_latex=use_latex)
     vdh_fig, vdh_events = plotVanDenHeuvel(events=events, outdir=outdir, use_latex=use_latex)
 
     if show:
@@ -76,14 +72,8 @@ def set_font_params(use_latex=True):
 
 ####### Functions to organize and call the plotting functions
 
-def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=True, show_spin=False):
-
-
-
-    if show_spin == True:
-        listOfPlots = [plotMassAttributes, plotLengthAttributes, plotStellarTypeAttributesAndEccentricity, plotSpin]
-    else:
-        listOfPlots = [plotMassAttributes, plotLengthAttributes, plotStellarTypeAttributes,plotHertzsprungRussell] 
+def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=True):
+    listOfPlots = [plotMassAttributes, plotLengthAttributes, plotStellarTypeAttributes, plotHertzsprungRussell]
 
     events = [event for event in events if event.eventClass != 'Stype']  # want to ignore simple stellar type changes
     if events[-1].eventClass == "End":
@@ -232,13 +222,13 @@ def plotStellarTypeAttributesAndEccentricity(ax=None, Data=None, mask=None, use_
     ax1.set_yticks(range(useTypes.shape[0]))
     ax1.set_yticklabels([stellarTypes[typeNum] for typeNum in useTypes])
 
-    ### Plot eccentricity - biz, removing eccentricity for the moment. just for clearer plots. uncomment this after
-    # handle3 = ax2.plot(Data['Time'][()][mask], Data['Eccentricity'][()][mask] - .01, linestyle='-', c='k',
-    #                    label='Eccentricity')  # the minor subtraction makes the curve easier to find
-    # ax2.set_ylabel('Eccentricity', labelpad=10)
-    # ax2.set_yticks([0, .25, .5, .75, 1.0])
-    # ax2.set_ylim(-0.05, 1.05)
-    # ax2.tick_params(axis='y', left=False, right=True, direction='out', labelleft=False, labelright=True, pad=-25)
+    ### Plot eccentricity
+    handle3 = ax2.plot(Data['Time'][()][mask], Data['Eccentricity'][()][mask] - .01, linestyle='-', c='k',
+                       label='Eccentricity')  # the minor subtraction makes the curve easier to find
+    ax2.set_ylabel('Eccentricity', labelpad=10)
+    ax2.set_yticks([0, .25, .5, .75, 1.0])
+    ax2.set_ylim(-0.05, 1.05)
+    ax2.tick_params(axis='y', left=False, right=True, direction='out', labelleft=False, labelright=True, pad=-25)
 
     # Legend
     handles, labels = ax1.get_legend_handles_labels()
@@ -322,79 +312,13 @@ def plotHertzsprungRussell(ax=None, Data=None, events=None, mask=None, use_latex
 
     # Add in the letters corresponding to various events
     event_times = [event.time for event in events]
-    mask2 = mask & (np.isin(Data['Time'][()], event_times))
+    mask2 = mask & (np.in1d(Data['Time'][()], event_times))
     Tmsk = Data['Teff(1)'][()][mask2]
     Lmsk = Data['Luminosity(1)'][()][mask2]
     for jj in range(np.sum(mask2)):
         ax.text(x=Tmsk[jj], y=Lmsk[jj], s=chr(
             ord('@') + 1 + jj))  # The unicode representation of the capital letters - works as long as there are less than 26 images to show
 
-    ax.legend(framealpha=1, prop={'size': 8})
-    ax.grid(linestyle=':', c='gray')
-
-    return ax.get_legend_handles_labels()
-
-#biz - include here the spin plot, then include this into the main plotter with spin as an option instead of temp?? 
-def calculate_dimensionless_spin(mass, ang_momentum):
-    # Calculate the dimensionless spin parameter chi = cJ/GM^2 
-    
-    M = mass * u.Msun
-    J = ang_momentum * u.Msun * u.au**2 / u.yr
-
-    G = const.G  # [gr cm s^2]
-    c = const.c    # [cm/s]
-
-    chi = (c * J) / (G * M**2)
-
-    return chi.decompose().value
-
-
-def plotSpin(ax=None, Data=None, events=None, mask=None, use_latex=True, **kwargs):
-    #Plotting spin evolution with time for both stars, with the same event markers as the other plots.
-
-    dark2 = plt.get_cmap("Dark2").colors #biz - adding colour map to match my other plots changing 'r' to c3 and 'b' to c2 
-    c1, c2, c3, c4, c5 = dark2[:5]
-
-    #first gather info needed to calculate spin 
-    mass1 = Data['Mass(1)'][()][mask]
-    mass2 = Data['Mass(2)'][()][mask]
-    ang1 = Data['Ang_Momentum(1)'][()][mask]
-    ang2 = Data['Ang_Momentum(2)'][()][mask]
-    st1 = Data['Stellar_Type(1)'][()][mask]
-    st2 = Data['Stellar_Type(2)'][()][mask]
-    
-    #calculate the spin
-
-    chi1 = np.full(len(mass1), np.nan)
-    chi2 = np.full(len(mass2), np.nan)
-
-    for i in range(len(mass1)):
-        if st1[i] in [13,14]:
-            chi1[i] = calculate_dimensionless_spin(mass1[i], ang1[i])
-
-        if st2[i] in [13,14]:
-            chi2[i] = calculate_dimensionless_spin(mass2[i], ang2[i])
-
-    # plot the spin 
-
-    ax.plot(Data['Time'][()][mask], chi1, linestyle='-', c=c3, label='Star 1')
-    ax.plot(Data['Time'][()][mask], chi2, linestyle='-', c=c2, label='Star 2')
-    if use_latex:
-        ax.set_ylabel(r'Dimensionless spin parameter [a]')
-    else:
-        ax.set_ylabel('Dimensionless spin parameter [a]')
-    ax.set_xlabel('Time / Myr')
-
-    #add event markers as in the other plots 
-    event_times = [event.time for event in events]
-    num_events = len(event_times)
-    spaced_out_event_times = space_out(event_times, min_separation=ax.get_xlim()[1] / 75)
-    
-    for jj in range(num_events):
-        yOffsetFactor = 1.5 if (ax.get_yscale() == 'log') else 1.02
-        ax.text(x=spaced_out_event_times[jj], y=ax.get_ylim()[1] * yOffsetFactor, s=chr(
-            ord('@') + 1 + jj))  # The unicode representation of the capital letters - works as long as there are less than 26 images to show
-    
     ax.legend(framealpha=1, prop={'size': 8})
     ax.grid(linestyle=':', c='gray')
 
@@ -664,17 +588,8 @@ class Event(object):
                 T0 = a ** 4 / 4 / beta
                 Tdelay = T0 * (1 - e ** 2) ** (7 / 2) * (
                         1 + 0.31 * e ** 10 + 0.27 * e ** 20 + 0.2 * e ** 1000) / 3.15e7 / 1e6
-                
-                # Cap the merger time at a reasonable upper limit (age of universe ~13.8 Gyr)
-                # to avoid excessively large times for wide binaries
-                AGE_OF_UNIVERSE_MYR = 1.38e4
-                if Tdelay > AGE_OF_UNIVERSE_MYR:
-                    eventString = r'Double compact object ({}+{}) - merger time > {:.1e} Myr (unbound equivalent)'.format(
-                        self.stypeName1, self.stypeName2, AGE_OF_UNIVERSE_MYR)
-                    self.time = self.time + AGE_OF_UNIVERSE_MYR
-                else:
-                    eventString = r'Double compact object ({}+{}) merging in {:.2e} Myr'.format(self.stypeName1, self.stypeName2, Tdelay)
-                    self.time = self.time + Tdelay
+                eventString = r'Double compact object ({}+{}) merging in {:.2e} Myr'.format(self.stypeName1, self.stypeName2, Tdelay)
+                self.time=self.time+Tdelay
 
                 if (stype1 == 13) and (stype2 == 13):
                     image_num = 55
