@@ -32,13 +32,13 @@ def main():
     run_main_plotter(args.data_path, outdir=args.outdir, show=args.dont_show, use_latex=True)
 
 
-def run_main_plotter(data_path, outdir='.', show=True, use_latex=True, show_spin=False):
+def run_main_plotter(data_path, outdir='.', show=True, use_latex=True, show_spin=False, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None):
 
     ### Collect the raw data and mask for just the end-of-timesteps events
     RawData = h5.File(data_path, 'r')
     tf = tempfile.TemporaryFile()
     Data = h5.File(tf, 'w')
-    maskRecordType4 = RawData['Record_Type'][()] == 4     # Filter first for only end-of-timestep events
+    maskRecordType4 = RawData['Record_Type'][()] == 4     # Filter first for only end-of-timestep events biz do i need to change this
     for key in RawData.keys():
         Data.create_dataset(key, data=RawData[key][()][maskRecordType4])
     print(np.unique(Data['Record_Type'][()]))
@@ -48,7 +48,7 @@ def run_main_plotter(data_path, outdir='.', show=True, use_latex=True, show_spin
     printEvolutionaryHistory(events=events)
 
     ### Produce the two plots
-    detailed_fig = makeDetailedPlots(Data, events, outdir=outdir, use_latex=use_latex, show_spin=show_spin)
+    detailed_fig = makeDetailedPlots(Data, events, outdir=outdir, use_latex=use_latex, show_spin=show_spin, obvs_start=obvs_start, obvs_end=obvs_end, disc_start=disc_start, disc_end=disc_end)
     vdh_fig, vdh_events = plotVanDenHeuvel(events=events, outdir=outdir, use_latex=use_latex)
 
     if show:
@@ -76,7 +76,7 @@ def set_font_params(use_latex=True):
 
 ####### Functions to organize and call the plotting functions
 
-def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=True, show_spin=False):
+def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=True, show_spin=False, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None):
 
 
 
@@ -112,7 +112,7 @@ def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=T
         # TODO: Set the reverse log scale for time
 
         # Plot the data
-        handles, labels = specificPlot(ax=ax, Data=Data, events=events, mask=mask, use_latex=use_latex)
+        handles, labels = specificPlot(ax=ax, Data=Data, events=events, mask=mask, use_latex=use_latex, show_spin=show_spin, obvs_start=obvs_start, obvs_end=obvs_end, disc_start=disc_start, disc_end=disc_end)
 
         # Add some breathing space at the top of the plot
         ymin, ymax = ax.get_ylim()
@@ -148,7 +148,7 @@ def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=T
 ######## Plotting functions
 
 
-def plotMassAttributes(ax=None, Data=None, mask=None, use_latex=True, **kwargs):
+def plotMassAttributes(ax=None, Data=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, **kwargs):
     ### Plot mass attributes
     # Create new column for total mass
     Mtot = Data['Mass(1)'][()][mask] + Data['Mass(2)'][()][mask]
@@ -165,10 +165,16 @@ def plotMassAttributes(ax=None, Data=None, mask=None, use_latex=True, **kwargs):
     else:
         ax.set_ylabel('Mass / Msun')
 
+    if (obvs_start is not None) and (obvs_end is not None): #biztodo - check this is right, add into the other functions. 
+        ax.axvspan(obvs_start, obvs_end, color='g', alpha=0.5, label='Observable window')
+
+    if (disc_start is not None) and (disc_end is not None):        
+        ax.axvspan(disc_start, disc_end, color='g', alpha=0.3, label='disc formed')
+
     return ax.get_legend_handles_labels()
 
 
-def plotLengthAttributes(ax=None, Data=None, mask=None, use_latex=True, **kwargs):
+def plotLengthAttributes(ax=None, Data=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, **kwargs):
     ### Plot radius attributes
     ax.plot(Data['Time'][()][mask], Data['SemiMajorAxis'][()][mask], linestyle='-', c='k', label='Semi-Major Axis')
     ax.plot(Data['Time'][()][mask], Data['SemiMajorAxis'][()][mask] * (1 - Data['Eccentricity'][()][mask]), linestyle=':', c='k', label='Periapsis')
@@ -182,6 +188,12 @@ def plotLengthAttributes(ax=None, Data=None, mask=None, use_latex=True, **kwargs
     else:
         ax.set_ylabel('Radius / Rsun')
     ax.set_yscale('log')
+
+    if (obvs_start is not None) and (obvs_end is not None): #biztodo - check this is right, add into the other functions. 
+        ax.axvspan(obvs_start, obvs_end, color='g', alpha=0.3, label='Observable window')
+
+    if (disc_start is not None) and (disc_end is not None):
+        ax.axvspan(disc_start, disc_end, color='g', alpha=0.3, label='disc formed')
 
     return ax.get_legend_handles_labels()
 
@@ -217,7 +229,7 @@ def plotStellarTypeAttributes(ax=None, Data=None, mask=None, use_latex=True, **k
     return ax.get_legend_handles_labels()
 
 
-def plotStellarTypeAttributesAndEccentricity(ax=None, Data=None, mask=None, use_latex=True, **kwargs):
+def plotStellarTypeAttributesAndEccentricity(ax=None, Data=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, **kwargs):
     ax1 = ax
     ax2 = ax.twinx()
 
@@ -240,15 +252,21 @@ def plotStellarTypeAttributesAndEccentricity(ax=None, Data=None, mask=None, use_
     # ax2.set_ylim(-0.05, 1.05)
     # ax2.tick_params(axis='y', left=False, right=True, direction='out', labelleft=False, labelright=True, pad=-25)
 
+
+    # Grid
+    ax2.yaxis.grid(False)
+
+    if (obvs_start is not None) and (obvs_end is not None): #biztodo - check this is right, add into the other functions. 
+        ax1.axvspan(obvs_start, obvs_end, color='g', alpha=0.3, label='Observable window')
+    if (disc_start is not None) and (disc_end is not None):
+        ax1.axvspan(disc_start, disc_end, color='g', alpha=0.3, label='disc formed')
+
     # Legend
     handles, labels = ax1.get_legend_handles_labels()
     handles2, labels2 = ax2.get_legend_handles_labels()
     handles.extend(handles2)
     labels.extend(labels2)
     ax.legend(handles=handles, labels=labels)
-
-    # Grid
-    ax2.yaxis.grid(False)
 
     return handles, labels
 
@@ -349,7 +367,7 @@ def calculate_dimensionless_spin(mass, ang_momentum):
     return chi.decompose().value
 
 
-def plotSpin(ax=None, Data=None, events=None, mask=None, use_latex=True, **kwargs):
+def plotSpin(ax=None, Data=None, events=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, **kwargs):
     #Plotting spin evolution with time for both stars, with the same event markers as the other plots.
 
     dark2 = plt.get_cmap("Dark2").colors #biz - adding colour map to match my other plots changing 'r' to c3 and 'b' to c2 
@@ -362,28 +380,38 @@ def plotSpin(ax=None, Data=None, events=None, mask=None, use_latex=True, **kwarg
     ang2 = Data['Ang_Momentum(2)'][()][mask]
     st1 = Data['Stellar_Type(1)'][()][mask]
     st2 = Data['Stellar_Type(2)'][()][mask]
-    
+
+    print('')
+    print('test ang mom values')
+    print(np.min(ang1), np.max(ang1)) #biz - testing for ang mom values 
+    print(np.min(ang2), np.max(ang2)) #biz - testing for ang mom values 
     #calculate the spin
 
     chi1 = np.full(len(mass1), np.nan)
     chi2 = np.full(len(mass2), np.nan)
 
-    for i in range(len(mass1)):
-        if st1[i] in [13,14]:
-            chi1[i] = calculate_dimensionless_spin(mass1[i], ang1[i])
+    # removing this temporarily in order to plot entire spin evolution - biz 
+    # for i in range(len(mass1)):
+    #     if st1[i] in [13,14]:
+    #         chi1[i] = calculate_dimensionless_spin(mass1[i], ang1[i])
 
-        if st2[i] in [13,14]:
-            chi2[i] = calculate_dimensionless_spin(mass2[i], ang2[i])
+    #     if st2[i] in [13,14]:
+    #         chi2[i] = calculate_dimensionless_spin(mass2[i], ang2[i])
+
+    for i in range(len(mass1)):
+        chi1[i] = calculate_dimensionless_spin(mass1[i], ang1[i])
+        chi2[i] = calculate_dimensionless_spin(mass2[i], ang2[i])
 
     # plot the spin 
 
-    ax.plot(Data['Time'][()][mask], chi1, linestyle='-', c=c3, label='Star 1')
-    ax.plot(Data['Time'][()][mask], chi2, linestyle='-', c=c2, label='Star 2')
+    ax.plot(Data['Time'][()][mask], chi1, linestyle='-', c='r', label='Star 1')
+    ax.plot(Data['Time'][()][mask], chi2, linestyle='-', c='b', label='Star 2')
     if use_latex:
         ax.set_ylabel(r'Dimensionless spin parameter [a]')
     else:
         ax.set_ylabel('Dimensionless spin parameter [a]')
     ax.set_xlabel('Time / Myr')
+    ax.set_yscale('symlog', linthresh=1e-10) #biz - adding log scale if this helps? (sym log)
 
     #add event markers as in the other plots 
     event_times = [event.time for event in events]
@@ -397,6 +425,11 @@ def plotSpin(ax=None, Data=None, events=None, mask=None, use_latex=True, **kwarg
     
     ax.legend(framealpha=1, prop={'size': 8})
     ax.grid(linestyle=':', c='gray')
+
+    if (obvs_start is not None) and (obvs_end is not None): #biztodo 
+        ax.axvspan(obvs_start, obvs_end, color='g', alpha=0.3, label='Observable window')
+    if (disc_start is not None) and (disc_end is not None):
+        ax.axvspan(disc_start, disc_end, color='g', alpha=0.3, label='disc formed')
 
     return ax.get_legend_handles_labels()
 

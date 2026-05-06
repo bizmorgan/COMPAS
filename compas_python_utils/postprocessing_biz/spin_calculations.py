@@ -53,8 +53,8 @@ class determine_bbh(object):
 
         # Store BBH seeds for later use with detailed output files
         self.BBH_SEEDS = seed_dco[mask_binary_BH]
-        print(self.BBH_SEEDS.dtype, self.BBH_SEEDS) ######## debugging to see how seeds stored
-        print(f"Identified {self.BBH_SEEDS.size} BBH systems.")
+        #print(self.BBH_SEEDS.dtype, self.BBH_SEEDS) ######## removing - want to print the overlap. 
+        #print(f"Identified {self.BBH_SEEDS.size} BBH systems.")
 
         if self.BBH_SEEDS.size == 0:
             raise RuntimeError("No BBH systems found in this COMPAS output.")
@@ -62,45 +62,269 @@ class determine_bbh(object):
         # detailed_dir = self.path.parent / 'Detailed_Output'
         # print("Detailed dir exists:", detailed_dir.exists())
 
+        # # removing this for now to use the determine_hmxrb object below 
+
+        # fRLOF = self.h5file['BSE_RLOF']
+
+        # #seed for these systems 
+        # seeds_rlof = fRLOF['SEED'][...].squeeze()
+        # #store seeds for later use 
+        # self.seed_rlof = np.unique(seeds_rlof) 
+        # print(f"Identified {self.seed_rlof.size} HMXRB systems.")
+
+        # #Combining requirements for HMXRB and BBH
+        # self.combined_seeds = np.intersect1d(self.BBH_SEEDS, self.seed_rlof)
+        # print(f"{self.combined_seeds.size, self.combined_seeds} systems are BOTH BBH and HMXRB.")
+
+        # if self.combined_seeds.size == 0:
+        #     raise RuntimeError("No matching systems found.")
+
+        return self.BBH_SEEDS
+
+    
+    def close(self):
+        self.h5file.close()
+
+class determine_hmxrb(object):
+
+    def __init__(self, data_path):
+        data_path = Path(data_path)
+        self.path = data_path
+        if not self.path.is_file():
+            raise ValueError(
+                f"h5 file not found. Wrong path given?\npath checked = {self.path}")
+        else:
+            self.h5file = h5.File(self.path, "r")
+        
+    def identify_hmxrb_systems(self): 
+        fRLOF = self.h5file['BSE_RLOF']
+
+        #seed for these systems 
+        seeds_rlof = fRLOF['SEED'][...].squeeze()
+
+        st1 = fRLOF['Stellar_Type(1)<MT'][...].squeeze()
+        st2 = fRLOF['Stellar_Type(2)<MT'][...].squeeze() 
+
+        pre_rad = fRLOF['Radius(2)|RL<step'][...].squeeze()
+        post_rad = fRLOF['Radius(2)|RL>step'][...].squeeze()
+
+        rlof1 = fRLOF['RLOF(1)<MT'][...].squeeze() #want the timestep before mass transfer is occuring, needs to be 1 in the mask to be true 
+        rlof2 = fRLOF['RLOF(2)<MT'][...].squeeze()
+
+        time = fRLOF['Time<MT'][...].squeeze() 
+
+        mass1 = fRLOF['Mass(1)<MT'][...].squeeze()
+        mass2 = fRLOF['Mass(2)<MT'][...].squeeze()
+
+        sep_all  = fRLOF['SemiMajorAxis<MT'][...].squeeze()
+        rad1_all = fRLOF['Radius(1)<MT'][...].squeeze()
+        rad2_all = fRLOF['Radius(2)<MT'][...].squeeze()
+
+        mt_rates_all = fRLOF['MassTransferRateDonor'][...].squeeze()
+
+        #Inlcude case A MT here also 
+        
+        caseA_mask = (
+            ((rlof1 == 1) & (st1 <= 2)) |
+            ((rlof2 == 1) & (st2 <= 2))
+        ) 
+
+
+        #ratio = post_rad / pre_rad #needs to be >0.8 this is for the secondary star as the first will already be a black hole. Only considering compainion star is star 2
+
+        safe_ratio = np.divide(
+            post_rad, pre_rad,
+            out=np.full_like(post_rad, np.nan, dtype=float),
+            where=pre_rad > 0
+        )
+
+        compact1 = (st1 >= 13) & (st2 < 13)
+        compact2 = (st2 >= 13) & (st1 < 13)
+
+        hmxrb_mask = (compact1 | compact2) & (safe_ratio > 0.8)
+                
+        # Case A MT events
+        caseA_seeds = seeds_rlof[caseA_mask]
+        caseA_times = time[caseA_mask]
+
+        # HMXRB events
+        hmxb_seeds_rows = seeds_rlof[hmxrb_mask]
+        hmxb_times_rows = time[hmxrb_mask]
+
+        self.hmxrb_seeds = np.unique(hmxb_seeds_rows) 
+
+        #print(self.hmxrb_seeds) #these have the rlof 0.8/0.9 but not the case A MT 
+
+        valid_hmxb_seeds = []
+        visible_times = {}
+        
+        #check hmxrb events had an earlier case A MT event 
+        for seed in self.hmxrb_seeds:        #if this loop takes too long look into vectorizing this  *biztodo
+            t_hmxb = hmxb_times_rows[hmxb_seeds_rows == seed]
+            t_caseA = caseA_times[caseA_seeds == seed]
+            # skip if this system never had Case A
+            if t_caseA.size == 0:
+                continue
+
+            if np.any(t_caseA < np.min(t_hmxb)):
+                valid_hmxb_seeds.append(seed)
+
+                visible_times[seed] = {"luminosity": {"time": np.array([]), "Lx": np.array([])}, "disc": {"time": np.array([]), "Lx": np.array([])}}
+
+                #now including extra to be checks for when the high mass xray binary would be observable:
+                print("high mass xray binary time for seed", seed ,"from:", np.min(t_hmxb), "to:", np.max(t_hmxb)) 
+
+                # rows belonging to this seed AND HMXB phase
+                seed_rows = (hmxb_seeds_rows == seed)
+
+                t_hmxb = hmxb_times_rows[seed_rows]
+
+                # get mass transfer rates for these rows
+                mt_rates = mt_rates_all[hmxrb_mask][seed_rows]
+
+                #now must convert this m_dot to luminosity estimation 
+                #attaching units with astropy units (easy to convert later) 
+                
+                mt_rates = mt_rates * u.Msun/u.yr
+                mt_rates = mt_rates.to(u.g/u.s) #may need to change this back surely itll be huge ??
+                eta = 0.5 #set this in the yaml?
+                # Lx = η Mdot c^2
+                Lx = eta * mt_rates * const.c**2
+
+                #converting to erg to compare to telescope values 
+                Lx = Lx.to(u.erg / u.s)
+
+                #nustar value 
+                L_nustar = 1e32 * u.erg / u.s
+
+                #XMM value (biztodo) - look this up 
+                
+
+                #detectable if the luminosity is above this value 
+                detectable = Lx > L_nustar
+
+                Lx_detectable = Lx[detectable]
+
+                t_detectable = t_hmxb[detectable]
+                if t_detectable.size > 0:
+                    visible_times[seed]["luminosity"]["time"] = t_detectable
+                    visible_times[seed]["luminosity"]["Lx"]   = Lx_detectable
+                    print(
+                        f"Observable HMXB (by luminosity) for seed {seed} from "
+                        f"{np.min(t_detectable)} to {np.max(t_detectable)} Myr"
+                    )
+
+
+                #now following Hirai and Mandel paper - disc formation for observability
+
+                #need R_circ > R_ISCO
+
+                #will need to sort units here *** 
+
+                sep  = sep_all[hmxrb_mask][seed_rows]  * u.Rsun
+                rad1 = rad1_all[hmxrb_mask][seed_rows] * u.Rsun
+                rad2 = rad2_all[hmxrb_mask][seed_rows] * u.Rsun
+
+                m1 = mass1[hmxrb_mask][seed_rows] * u.Msun
+                m2 = mass2[hmxrb_mask][seed_rows] * u.Msun
+
+                st1_rows = st1[hmxrb_mask][seed_rows]
+                st2_rows = st2[hmxrb_mask][seed_rows]
+
+                #determining which object is the BH and which is the donor
+                bh_is_1 = st1_rows >= 14
+                bh_is_2 = st2_rows >= 14
+
+                bh_m    = np.where(bh_is_1, m1, m2)
+                donor_m = np.where(bh_is_1, m2, m1)
+                donor_r = np.where(bh_is_1, rad2, rad1)
+                a_orb   = sep
+                
+                # bh_m = #need to determine which object is the BH and which is therefore the donor
+                # donor_m = # need to determine which object is the BH and which is the donor
+                # a_orb = #separation
+                # donor_r = #once know which is donor then get this radius from RLOF file  
+
+                #v_orb = np.sqrt(G*(M_donor + M_bh)/a_orb)
+                
+                R_sch = (2 * const.G * bh_m) / const.c**2 
+                R_isco = 3 * R_sch  #R Innermost Stable Circular Orbit
+
+                orb_v = np.sqrt(const.G * (bh_m + donor_m) / a_orb )
+                
+                v_esc = np.sqrt(2 * const.G * donor_m / donor_r)
+                v_inf = 2.6 * v_esc
+                rad_wind_v = v_inf * (1 - donor_r/a_orb)
+
+                
+                wind_v = np.sqrt(orb_v**2 + rad_wind_v**2) #wind velocity in the vicinity of the accreting object (vector sum of the orbital velocyt and the radial wind velocity) 
+                
+                R_acc = (2 * const.G * bh_m) / wind_v**2 #capture radius  
+                
+                omega = np.sqrt(const.G*(donor_m + bh_m)/a_orb**3) #orbital angular frequency 
+
+                # ang mom of captured wind (eta_j = 0.1), assumption in paper, biz check
+                eta_j = 0.1
+                
+                angmom_j = eta_j * omega * R_acc**2
+                
+                R_circ = (angmom_j**2) / (const.G * bh_m) #R CIRC
+
+                disc_forms = R_circ > R_isco
+
+                Lx_disc_forms = Lx[disc_forms] #using luminosity caluclations defined above - could include additional luminsoity condition?
+
+                t_disc_forms = t_hmxb[disc_forms]
+                
+                if t_disc_forms.size > 0:
+                    visible_times[seed]["disc"]["time"] = t_disc_forms
+                    visible_times[seed]["disc"]["Lx"]   = Lx_disc_forms
+                    print(
+                        f"Observable HMXB (disc formation) for seed {seed} from "
+                        f"{np.min(t_disc_forms)} to {np.max(t_disc_forms)} Myr"
+                    )
+                
+                
+        #should only be the seeds which are case A then hmxrb
+        self.hmxrb_seeds = np.array(valid_hmxb_seeds)
+    
+        #print(f"Identified {self.hmxrb_seeds.size} HMXRB systems.")
+        #if self.hmxrb_seeds.size > 0:
+            #seed_lines = "\n".join(f"--random-seed {seed}" for seed in self.hmxrb_seeds.tolist())
+            #print(seed_lines)
+
+        return self.hmxrb_seeds, visible_times
+
     def close(self):
         self.h5file.close()
 
 
 
-        
 
+def get_bbh_hmxrb_overlap(data_path):
 
+    # --- run BBH finder ---
+    bbh = determine_bbh(data_path)
+    bbh_seeds = bbh.identify_bbh_systems()
+    bbh.close()
 
-    # def get_bbh_detailed_files(self, data_path):
-    #     ######## below is to return paths to BBH systems in the detailed output files - put this into a new function 
+    # --- run HMXRB finder ---
+    hmx = determine_hmxrb(data_path)
+    hmxrb_seeds, visible_times = hmx.identify_hmxrb_systems()
+    hmx.close()
 
-    #     detailed_dir = Path(data_path) / 'Detailed_Output'
-    #     print("Detailed dir exists:", detailed_dir.exists())
-        #print("H5 files found:", list(detailed_dir.glob("BSE_Detailed_Output_*.h5"))) was a check to catch when stopped working 
+    # --- intersect seeds ---
+    overlapping_seeds = np.intersect1d(bbh_seeds, hmxrb_seeds)
 
+    print(f"\nFound {overlapping_seeds.size} systems that are BOTH BBH and HMXRB.")
+    if overlapping_seeds.size > 0:
+            seed_lines = "\n".join(f"--random-seed {seed}" for seed in overlapping_seeds.tolist())
+            print(seed_lines)
 
-        # bbh_detailed_files = [] - no longer need this - all detailed files returned are now only for BBHs 
+    return overlapping_seeds, visible_times
 
-        # for h5path in detailed_dir.glob("*.h5"):
-        #     try:
-        #         with h5.File(h5path, "r") as f:
-        #             print(f['SEED'].dtype, f['SEED'][()]) ######## debugging to see how seeds stored 
-        #             seed = int(f["SEED"][0])
-        #     except (OSError, KeyError, ValueError):
-        #         # skip non-HDF5 files or malformed detailed outputs
-        #         continue
+    
 
-        #     if seed in self.BBH_SEEDS:
-        #         print(f"Found BBH system with SEED {seed} in {h5path}")
-        #         bbh_detailed_files.append(h5path)
-
-        #     print(f"Matched {len(bbh_detailed_files)} detailed output files.")
-
-        #     return bbh_detailed_files
-            
-
-
-            
 
 
 class spin_param_calculations(object):
