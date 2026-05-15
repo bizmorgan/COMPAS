@@ -1686,6 +1686,23 @@
 //                                          - Corrected luminosity evolution for CH stars (issue #1443)
 //  03.27.03  IM - December 16, 2025    - Defect repair:
 //                                          - Fix issue #1446: Theta and phi variables are flipped when assigning kicks, potentially giving unintended kick distributions
+//  03.28.00  PD - January 28, 2026     - Enhancement:
+//                                          - Updated default MullerMandel kick parameters in constants.h to the values from Disberg+2026, previous values were from Kapil+2023
+//  03.29.00  VK - January 30, 2026     - Enhancements:
+//                                          - Added new tidal prescription based on Zahn (1977) and Hurley et. al (2002), called '--tides-prescription ZAHN1977'.
+//                                          - Renamed KAPIL2025 tides prescription to KAPIL2026 to match publication.
+//                                          - Updated the spin limit in 'BaseBinaryStar::CalculateDOmegaTidalDt()' to allow pseudo-synchronization based on Hut (1981), which affects the maximum spin with KAPIL2026 and ZAHN1977 options.
+//                                          - Added a limit to rotation change per time step in KAPIL2026 to ensure angular momentum conservation.
+//                                          - Updated dynamical tides equations in KAPIL2026 to match paper.
+//  03.29.01  JR - March 15, 2026       - Defect repair:
+//                                          - Fix for issue 1441: vector out-of-bounds access in Log.cpp, which is known to cause COMPAS to terminate on at least one Linux
+//                                            distribution (Manjaro), possibly C++ version specific.  See issue 1441 for description of defect and repair details.
+//  03.29.02  AB - March 16, 2026       - Defect repair:
+//                                          - Fix for issue 1463: sign error in the Claeys+2014 common-envelope lambda prescription
+//  03.29.03 NRS - April  3, 2026       - Defect repair:
+//                                          - Fixed HeSDs not being recorded in the Supernovae logs (mentioned in issue 1350).
+//  03.29.04  IM - April 19, 2026       - Enhancement:
+//                                          - Corrected the M&M NS remnant mass prescription to never return a remnant mass larger than the CO core mass (see issue #1468)
 //
 //
 // Version string format is MM.mm.rr, where
@@ -1697,7 +1714,7 @@
 // if MM is incremented, set mm and rr to 00, even if defect repairs and minor enhancements were also made
 // if mm is incremented, set rr to 00, even if defect repairs were also made
 
-const std::string VERSION_STRING = "03.27.03";
+const std::string VERSION_STRING = "03.29.04";
 
 
 # endif // __changelog_h__

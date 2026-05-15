@@ -212,7 +212,7 @@ Slope for the Kruckow lambda (see Kruckow et al. 2016 as implemented by Vigna-Go
 Default = −0.833333
 
 **--convective-envelope-mass-threshold** |br|
-Mass threshold of envelope which should be convective, above which the envelopes of giants are labeled convective. |br|
+Mass threshold of envelope which should be convective, above which the envelopes of giants are labelled convective. |br|
 Only used for --envelope-state-prescription = CONVECTIVE_MASS_FRACTION, ignored otherwise. |br|
 Default = 0.1
 
@@ -402,10 +402,12 @@ Default = TRUE
 
 **--envelope-state-prescription** |br|
 Prescription for determining whether the envelope of the star is convective or radiative. |br|
-Options: { LEGACY, HURLEY, FIXED_TEMPERATURE } |br|
+Options: { LEGACY, HURLEY, FIXED_TEMPERATURE, CONVECTIVE_MASS_FRACTION } |br|
 ``LEGACY`` refers to the model used in Stevenson et al., 2017 |br|
 ``HURLEY`` refers to the model of Hurley, Pols, Tout, 2002 |br|
 ``FIXED_TEMPERATURE`` assumes that a deep convective envelope developes only when the temperature drops below ``CONVECTIVE_BOUNDARY_TEMPERATURE`` (Klencki et al., 2020) |br|
+``CONVECTIVE_MASS_FRACTION`` means that whether the envelope is labelled convective is determined by the fraction of the envelope's mass which is convective; 
+that threshold can be changed from its default value with the additional option ``--convective-envelope-mass-threshold`` |br|
 Default = LEGACY
 
 **--errors-to-file** |br|
@@ -629,12 +631,12 @@ Default = Random number drawn uniformly from :math:`[0.0, 1.0)`
 **--kick-magnitude-sigma-CCSN-BH** |br|
 Sigma for chosen kick magnitude distribution for black holes (:math:`km s^{−1}`). |br|
 Ignored if not needed for the chosen kick magnitude distribution. |br|
-Default = 265.0
+Default = 217.0
 
 **--kick-magnitude-sigma-CCSN-NS** |br|
 Sigma for chosen kick magnitude distribution for neutron stars (:math:`km s^{−1}`). |br|
 Ignored if not needed for the chosen kick magnitude distribution. |br|
-Default = 265.0
+Default = 217.0
 
 **--kick-magnitude-sigma-ECSN** |br|
 Sigma for chosen kick magnitude distribution for ECSN (:math:`km s^{−1}`). |br|
@@ -993,15 +995,15 @@ Default = 200.0
 
 **--muller-mandel-kick-multiplier-NS** |br|
 Scaling prefactor for NS kicks when using the `MULLERMANDEL` kick magnitude distribution |br|
-Default = 520.0
+Default = 630.0
 
 **--muller-mandel-sigma-kick-BH** |br|
 Scatter width for BH kicks when using the `MULLERMANDEL` kick magnitude distribution |br|
-Default = 0.3
+Default = 0.45
 
 **--muller-mandel-sigma-kick-NS** |br|
 Scatter width for NS kicks when using the `MULLERMANDEL` kick magnitude distribution |br|
-Default = 0.3
+Default = 0.45
 
 .. _options-props-N:
 
@@ -1388,10 +1390,11 @@ A record is written to the System Snapshot logfile on the first timestep at whic
 
 **--tides-prescription** |br|
 Prescription for tidal evolution of the binary. |br|
-Options: { NONE, PERFECT, KAPIL2025 } |br|
+Options: { NONE, PERFECT, KAPIL2026, ZAHN1977 } |br|
 ``NONE`` disables tidal interactions. |br|
 ``PERFECT`` evolves the binary assuming instantaneous synchronization and circularization. |br|
-``KAPIL2025`` uses the prescription from Kapil+ (2025). |br|
+``KAPIL2026`` uses the prescription from Kapil+ (2026). |br|
+``ZAHN1977`` is based on Zahn (1977) and Hurley+ (2002). |br|
 Default = NONE
 
 **--timestep-filename** |br|

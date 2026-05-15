@@ -250,7 +250,7 @@ Binary Properties
        Refer to :doc:`../Handling errors/evolution-status-table` for possible values.
    * - Header Strings:
      - Evolution_Status
-
+  
 .. _binary-props-F:
 
 .. _binary-props-G:
@@ -292,7 +292,7 @@ Binary Properties
      - Flag to indicate if either star overflows its Roche lobe immediately following common envelope event.
    * - Header String:
      - Immediate_RLOF>CE
-
+   
 .. _binary-props-J:
 
 .. _binary-props-K:
@@ -483,7 +483,7 @@ Binary Properties
      - Flag to indicate if the binary compact remnants merge within a Hubble time.
    * - Header String:
      - Merges_Hubble_Time
-
+  
 .. _binary-props-N:
 
 .. _binary-props-O:
@@ -586,7 +586,7 @@ Binary Properties
        Will be 0.0 for unbound binaries.
    * - Header String:
      - Orbital_Velocity<SN
-
+   
 .. _binary-props-P:
 
 .. _binary-props-Q:
@@ -965,7 +965,7 @@ Binary Properties
      - Stellar type (per :cite:`Hurley2000`) of the primary star immediately after RLOF.
    * - Header String:
      - Stellar_Type(1)>MT
-
+   
 `Note that this property has the same header string as RLOF_POST_MT_STAR1_STELLAR_TYPE_NAME. It is expected that one or the other is printed in any file, 
 but not both. If both are printed then the file will contain two columns with the same header string.`
 
@@ -984,7 +984,7 @@ but not both. If both are printed then the file will contain two columns with th
      - Stellar type (per :cite:`Hurley2000`) of the primary star immediately after RLOF.
    * - Header String:
      - Stellar_Type(1)>MT
-
+   
 `Note that this property has the same header string as RLOF_POST_MT_STAR1_STELLAR_TYPE. It is expected that one or the other is printed in any file, 
 but not both. If both are printed then the file will contain two columns with the same header string.`
 
@@ -1003,7 +1003,7 @@ but not both. If both are printed then the file will contain two columns with th
      - Stellar type (per :cite:`Hurley2000`) of the secondary star immediately after RLOF.
    * - Header String:
      - Stellar_Type(2)>MT
-
+   
 `Note that this property has the same header string as RLOF_POST_MT_STAR2_STELLAR_TYPE_NAME. It is expected that one or the other is printed in any file, 
 but not both. If both are printed then the file will contain two columns with the same header string.`
 
@@ -1022,7 +1022,7 @@ but not both. If both are printed then the file will contain two columns with th
      - Stellar type (per :cite:`Hurley2000`) of the secondary star immediately after RLOF.
    * - Header String:
      - Stellar_Type(2)>MT
-
+   
 `Note that this property has the same header string as RLOF_POST_MT_STAR2_STELLAR_TYPE. It is expected that one or the other is printed in any file, 
 but not both. If both are printed then the file will contain two columns with the same header string.`
 
@@ -1266,7 +1266,7 @@ but not both. If both are printed then the file will contain two columns with th
      - Stellar type (per :cite:`Hurley2000`) of the primary star at the onset of RLOF.
    * - Header String:
      - Stellar_Type(1)<MT
-
+   
 `Note that this property has the same header string as RLOF_PRE_MT_STAR1_STELLAR_TYPE_NAME. It is expected that one or the other is printed in any file, 
 but not both. If both are printed then the file will contain two columns with the same header string.`
 
@@ -1285,7 +1285,7 @@ but not both. If both are printed then the file will contain two columns with th
      - Stellar type (per :cite:`Hurley2000`) of the primary star at the onset of RLOF.
    * - Header String:
      - Stellar_Type(1)<MT
-
+   
 `Note that this property has the same header string as RLOF_PRE_MT_STAR1_STELLAR_TYPE. It is expected that one or the other is printed in any file, 
 but not both. If both are printed then the file will contain two columns with the same header string.`
 
@@ -1304,7 +1304,7 @@ but not both. If both are printed then the file will contain two columns with th
      - Stellar type (per :cite:`Hurley2000`) of the secondary star at the onset of RLOF.
    * - Header String:
      - Stellar_Type(2)<MT
-
+   
 `Note that this property has the same header string as RLOF_PRE_MTvSTAR2_STELLAR_TYPE_NAME. It is expected that one or the other is printed in any file, 
 but not both. If both are printed then the file will contain two columns with the same header string.`
 
@@ -1323,7 +1323,7 @@ but not both. If both are printed then the file will contain two columns with th
      - Stellar type (per :cite:`Hurley2000`) of the secondary star at the onset of RLOF.
    * - Header String:
      - Stellar_Type(2)<MT
-
+   
 `Note that this property has the same header string as RLOF_PRE_MT_STAR2_STELLAR_TYPE. It is expected that one or the other is printed in any file, 
 but not both. If both are printed then the file will contain two columns with the same header string.`
 
@@ -1487,6 +1487,10 @@ but not both. If both are printed then the file will contain two columns with th
    * - Header String:
      - RocheLobe(2)<CE
 
+.. _binary-props-S:
+
+:ref:`Back to Top <binary-props-top>`
+
 .. flat-table::
    :widths: 25 75 1 1
    :header-rows: 0
@@ -1518,10 +1522,6 @@ but not both. If both are printed then the file will contain two columns with th
      - Ratio of the secondary star’s stellar radius to Roche radius (R/RL), evaluated at periapsis.
    * - Header String:
      - Radius(2)|RL
-
-.. _binary-props-S:
-
-:ref:`Back to Top <binary-props-top>`
 
 .. flat-table::
    :widths: 25 75 1 1
@@ -2137,7 +2137,6 @@ both. If both are printed then the file will contain two columns with the same h
      - l=2 components of the dynamical tidal potential Love number for the secondary star, indexed by (n,m).
    * - Header String:
      - ImKnm2_10_dyn, ImKnm2_12_dyn, ImKnm2_22_dyn, ImKnm2_32_dyn
-
 
 .. flat-table::
    :widths: 25 75 1 1
