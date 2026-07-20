@@ -49,12 +49,16 @@ class determine_bbh(object):
         # BBH condition: both compact objects are black holes, or neutron stars
         mask_binary_BH = (st1 == 14) & (st2 == 14) | (st1 == 13) & (st2 == 13) | (st1 == 14) & (st2 == 13) | (st1 == 13) & (st2 == 14)
 
+        mask_BH = (st1 == 14) | (st2 == 14) #just looking at systems with individual BHs 
+
         #mask_binary_BH = (st1 == 14) & (st2 == 14) #just looking at BBHs for now, can add NSs back in later if want to
 
         # Store BBH seeds for later use with detailed output files
         self.BBH_SEEDS = seed_dco[mask_binary_BH]
         #print(self.BBH_SEEDS.dtype, self.BBH_SEEDS) ######## removing - want to print the overlap. 
         #print(f"Identified {self.BBH_SEEDS.size} BBH systems.")
+
+        self.BH_SEEDS = seed_dco[mask_BH] #storing seeds for systems with individual BHs
 
         if self.BBH_SEEDS.size == 0:
             raise RuntimeError("No BBH systems found in this COMPAS output.")
@@ -79,7 +83,8 @@ class determine_bbh(object):
         # if self.combined_seeds.size == 0:
         #     raise RuntimeError("No matching systems found.")
 
-        return self.BBH_SEEDS
+        #return self.BBH_SEEDS BIZ for now removing BBH conditioning
+        return self.BH_SEEDS
 
     
     def close(self):
@@ -1045,3 +1050,331 @@ def plot_multiple_runs_from_dirs(run_dirs, outdir='.', show=True, use_latex=Fals
         plt.show()
     else:
         plt.close()
+
+
+
+#####################################################################
+# New class for determining high spin systems. 
+#####################################################################
+
+# plan - loop thorugh detailed outputs, extract BH angular momentum, mass, caluclate spin at BH formation, identify those with highest spin here. 
+
+class determine_high_spin_systems(object):
+    """
+    Class to identify high spin black hole systems from COMPAS detailed output files.
+    """
+
+    def __init__(self, detailed_output_dir):
+
+        self.detailed_dir = Path(detailed_output_dir)
+        if not self.detailed_dir.is_dir():
+            raise ValueError(f"Directory not found:\n{self.detailed_dir}")
+
+        
+    def get_bh_formation_spin(self, h5file):
+
+        with h5.File(h5file, "r") as f:
+            seed = int(f['SEED'][0])
+            mass1 = f['Mass(1)'][()]
+            mass2 = f['Mass(2)'][()]
+            ang1 = f['Ang_Momentum(1)'][()]
+            ang2 = f['Ang_Momentum(2)'][()]
+            stype1 = f['Stellar_Type(1)'][()]
+            stype2 = f['Stellar_Type(2)'][()]
+
+            record_type = f['Record_Type'][()]
+            mask_timestep = record_type == 4  # physical timesteps
+
+            mask_bh1 = mask_timestep & (stype1 == 14)
+            mask_bh2 = mask_timestep & (stype2 == 14)
+
+            bh_masses = []
+            bh_spins = []
+
+            spin_calc = spin_param_calculations(h5file)
+
+            if np.any(mask_bh1):
+                idx = np.where(mask_bh1)[0][0]
+                bh_masses.append(mass1[idx])
+                bh_spins.append(spin_calc.calculate_dimensionless_spin(mass1[idx], ang1[idx]))
+
+            max_spin = -np.inf
+            bh_mass = np.nan
+
+            if np.any(mask_bh1):
+
+                idx1 = np.where(mask_bh1)[0][0]
+
+                chi1 = spin_calc.calculate_dimensionless_spin(
+                    mass1[idx1],
+                    ang1[idx1]
+                )
+
+                if chi1 > max_spin:
+                    max_spin = chi1
+                    bh_mass = mass1[idx1]
+
+            if np.any(mask_bh2):
+
+                idx2 = np.where(mask_bh2)[0][0]
+
+                chi2 = spin_calc.calculate_dimensionless_spin(
+                    mass2[idx2],
+                    ang2[idx2]
+                )
+
+                if chi2 > max_spin:
+                    max_spin = chi2
+                    bh_mass = mass2[idx2]
+
+        return {
+            "seed": seed,
+            "spin": max_spin,
+            "bh_mass": bh_mass
+        }
+
+    def rank_systems_by_spin(self):
+
+        results = []
+
+        h5_files = self.detailed_dir.glob("BSE_Detailed_Output_*.h5")
+
+        for h5path in h5_files:
+
+            try:
+                result = self.get_bh_formation_spin(h5path)
+                results.append(result)
+
+            except (OSError, KeyError, ValueError) as e:
+                print(f"Skipping {h5path} due to error: {e}")
+
+        results = sorted(
+            results,
+            key=lambda x: x["spin"],
+            reverse=True
+        )
+
+        return results
+
+    def get_top_n_systems(self, n=5):
+
+        ranked = self.rank_systems_by_spin()
+
+        top_systems = ranked[:n]
+
+        print(f"\nTop {n} systems by BH spin:\n")
+
+        for system in top_systems:
+
+            print(
+                f"SEED {system['seed']} | "
+                f"spin = {system['spin']:.3f} | "
+                f"BH mass = {system['bh_mass']:.2f} Msun"
+            )
+
+        top_seeds = np.array(
+            [system['seed'] for system in top_systems]
+        )
+
+        return top_seeds
+
+
+
+#work from here to print the angular momentum of the systems, to figure out which are highly spinning. 
+#todo sort whether this is for star 1 or star 2 - removing this for now to try figure out way which does not need double compact objects. 
+# def fallback_fraction(h5filepath):
+#     """
+#     Calculate fallback fractions for supernovae in star 1 and/or star 2.
+    
+#     Returns separate fallback fractions for each star that undergoes a supernova,
+#     if the system forms a double compact object.
+    
+#     Returns:
+#         dict: Dictionary with keys 'fallback_fraction1' and/or 'fallback_fraction2'
+#               containing the fallback fractions if they exist
+#     """
+#     file = h5.File(h5filepath, "r")
+    
+#     # Get supernova and DCO datasets
+#     fSUPERNOVA = file['BSE_Supernovae']
+#     fDCO = file['BSE_Double_Compact_Objects']
+    
+#     # Get seeds to match records
+#     seeds_sn = fSUPERNOVA['SEED'][()]
+#     seeds_dco = fDCO['SEED'][()]
+    
+#     # Get stellar types to identify which star had the SN
+#     # The stellar type at SN is available to identify the star
+#     st_sn = fSUPERNOVA['Stellar_Type@SN'][()]
+    
+#     # Get masses for fallback calculation
+#     mass_sn = fSUPERNOVA['Mass_Total@CO(SN)'][()] #mass total just before the supernova
+#     core_mass_sn = fSUPERNOVA['Mass_Core@CO(SN)'][()]
+#     shell_mass = mass_sn - core_mass_sn
+    
+#     # Get DCO remnant masses
+#     remnant_mass_dco = fSUPERNOVA['Mass(SN)'][()] #from looking in the documentation i think this is what i want, but need to check this. biztodo
+    
+#     # Get stellar types of compact objects to identify star 1 vs star 2
+#     st1_dco = fDCO['Stellar_Type(1)'][()]
+#     st2_dco = fDCO['Stellar_Type(2)'][()]
+    
+#     result = {}
+    
+#     # Process each supernova record
+#     for i, seed in enumerate(seeds_sn):
+#         # Find corresponding DCO record with same SEED
+#         dco_idx = np.where(seeds_dco == seed)[0]
+        
+#         if len(dco_idx) > 0:
+#             dco_idx = dco_idx[0]
+            
+#             # Determine if this SN is from star 1 or star 2 by comparing stellar types
+#             st_sn_i = st_sn[i]
+            
+#             # Check if the SN stellar type matches star 1 or star 2 in the DCO record
+#             # The stellar type after SN should match the final compact object type
+#             if st_sn_i == st1_dco[dco_idx]:
+#                 # SN occurred in star 1
+#                 fallback_frac_1 = (remnant_mass_dco[dco_idx] - core_mass_sn[i]) / shell_mass[i]
+#                 result['fallback_fraction1'] = fallback_frac_1
+#                 print(f'fallback fraction (Star 1) = {fallback_frac_1}')
+            
+#             elif st_sn_i == st2_dco[dco_idx]:
+#                 # SN occurred in star 2
+#                 fallback_frac_2 = (remnant_mass_dco[dco_idx] - core_mass_sn[i]) / shell_mass[i]
+#                 result['fallback_fraction2'] = fallback_frac_2
+#                 print(f'fallback fraction (Star 2) = {fallback_frac_2}')
+    
+#     file.close()
+#     return result
+
+def fallback_fraction(h5filepath):
+    """
+    Calculate fallback fractions for all supernova events.
+
+    For binaries with multiple supernovae:
+        fallback_fraction1 = first SN in time
+        fallback_fraction2 = second SN in time
+
+    Returns
+    -------
+    dict
+        Dictionary indexed by SEED.
+    """
+
+    file = h5.File(h5filepath, "r")
+
+    fSUPERNOVA = file['BSE_Supernovae']
+
+    seeds = fSUPERNOVA['SEED'][()]
+    times = fSUPERNOVA['Time'][()]
+
+    mass_presn = fSUPERNOVA['Mass_Total@CO(SN)'][()]
+    core_mass = fSUPERNOVA['Mass_Core@CO(SN)'][()]
+    remnant_mass = fSUPERNOVA['Mass(SN)'][()]
+
+    shell_mass = mass_presn - core_mass
+
+    # Calculate fallback fraction for every SN event
+    fallback = (remnant_mass - core_mass) / shell_mass
+
+    result = {}
+
+    # Process each seed independently
+    for seed in np.unique(seeds):
+
+        idx = np.where(seeds == seed)[0]
+
+        # Sort this seed's SN events by time
+        idx = idx[np.argsort(times[idx])]
+
+        seed_result = {}
+
+        if len(idx) >= 1:
+            seed_result['fallback_fraction1'] = fallback[idx[0]]
+
+        if len(idx) >= 2:
+            seed_result['fallback_fraction2'] = fallback[idx[1]]
+
+        # if len(idx) > 2:
+        #     print(
+        #         f"Warning: SEED {seed} has {len(idx)} "
+        #         f"supernova events."
+        #     )
+
+        #calculating effective fallback, using the masses of the disc and the core 
+
+        if len(idx) >= 1:
+            frac_1 = (core_mass[idx[0]] + fallback[idx[0]] * shell_mass[idx[0]]) / mass_presn[idx[0]]
+            seed_result['effective_fallback_fraction1'] = frac_1
+
+        if len(idx) >= 2:
+            frac_2 = (core_mass[idx[1]] + fallback[idx[1]] * shell_mass[idx[1]]) / mass_presn[idx[1]]
+            seed_result['effective_fallback_fraction2'] = frac_2
+
+        result[seed] = seed_result
+
+    file.close()
+
+    return result
+     
+
+#here - write a function that will pick out high spin from the logfile definitions of post SN spin. 
+
+
+class determine_high_spin_post_sn(object):
+    """
+    Class to identify high spin black hole systems from COMPAS non-detailed supernova files. 
+    """
+
+    def __init__(self, output_dir):
+
+        self.nondetailed_dir = Path(output_dir)
+        if not self.nondetailed_dir.is_dir():
+            raise ValueError(f"Directory not found:\n{self.nondetailed_dir}")
+
+        
+    def get_post_sn_spin(self, h5file):
+
+        with h5.File(h5file, "r") as file:
+
+            sn = file["BSE_Supernovae"]
+
+            seeds = sn["SEED"][()]
+            ang = sn["Ang_Momentum(SN)"][()]
+            mass = sn["Mass(SN)"][()] #so this is remnant mass ** 
+            stype = sn["Stellar_Type(SN)"][()] #include filtering for BHs so that we only get phsyical values 
+
+            bh_filter = (stype == 14) #only keep BHs
+            seeds = seeds[bh_filter]
+            ang = ang[bh_filter]
+            mass = mass[bh_filter]
+
+
+        results = []
+
+        for idx, seed in enumerate(seeds):
+
+            # unit conversion 
+            J = ang[idx] * u.Msun * u.au**2 / u.yr 
+            M = mass[idx] * u.Msun
+            G = const.G
+            C = const.c
+
+            chi = C * J / (G * M**2)
+
+            results.append({
+                "seed": seed,
+                "spin": chi.decompose().value,
+                "bh_mass": mass[idx]
+            })
+
+        results.sort(key=lambda x: x["spin"], reverse=True)
+
+        print("Top 3 spin systems:")
+        for row in results[:3]: #printing the top 3 spin systems
+            print(row)
+
+        return results
+

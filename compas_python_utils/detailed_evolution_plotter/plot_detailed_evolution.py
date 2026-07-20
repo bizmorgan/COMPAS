@@ -32,13 +32,13 @@ def main():
     run_main_plotter(args.data_path, outdir=args.outdir, show=args.dont_show, use_latex=True)
 
 
-def run_main_plotter(data_path, outdir='.', show=True, use_latex=True, show_spin=False, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None):
+def run_main_plotter(data_path, outdir='.', show=True, use_latex=True, show_spin=False, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, fallback_fraction1=None, fallback_fraction2=None):
 
     ### Collect the raw data and mask for just the end-of-timesteps events
     RawData = h5.File(data_path, 'r')
     tf = tempfile.TemporaryFile()
     Data = h5.File(tf, 'w')
-    maskRecordType4 = RawData['Record_Type'][()] == 4     # Filter first for only end-of-timestep events biz do i need to change this
+    maskRecordType4 = RawData['Record_Type'][()] == 4     #biz changing this for testing. Filter first for only end-of-timestep events biz do i need to change this
     for key in RawData.keys():
         Data.create_dataset(key, data=RawData[key][()][maskRecordType4])
     print(np.unique(Data['Record_Type'][()]))
@@ -48,7 +48,7 @@ def run_main_plotter(data_path, outdir='.', show=True, use_latex=True, show_spin
     printEvolutionaryHistory(events=events)
 
     ### Produce the two plots
-    detailed_fig = makeDetailedPlots(Data, events, outdir=outdir, use_latex=use_latex, show_spin=show_spin, obvs_start=obvs_start, obvs_end=obvs_end, disc_start=disc_start, disc_end=disc_end)
+    detailed_fig = makeDetailedPlots(Data, events, outdir=outdir, use_latex=use_latex, show_spin=show_spin, obvs_start=obvs_start, obvs_end=obvs_end, disc_start=disc_start, disc_end=disc_end, fallback_fraction1=fallback_fraction1, fallback_fraction2=fallback_fraction2)
     vdh_fig, vdh_events = plotVanDenHeuvel(events=events, outdir=outdir, use_latex=use_latex)
 
     if show:
@@ -76,13 +76,14 @@ def set_font_params(use_latex=True):
 
 ####### Functions to organize and call the plotting functions
 
-def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=True, show_spin=False, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None):
+def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=True, show_spin=False, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, fallback_fraction1=None, fallback_fraction2=None):
 
 
 
     if show_spin == True:
-        listOfPlots = [plotMassAttributes, plotLengthAttributes, plotStellarTypeAttributesAndEccentricity, plotSpin]
+        listOfPlots = [plotMassAttributes, plotLengthAttributes, plotStellarTypeAttributesAndEccentricity, plotSpin, plotAngMom]
     else:
+        #listOfPlots = [plotMassAttributes, plotLengthAttributes, plotStellarTypeAttributesAndEccentricity, plotSpin]
         listOfPlots = [plotMassAttributes, plotLengthAttributes, plotStellarTypeAttributes,plotHertzsprungRussell] 
 
     events = [event for event in events if event.eventClass != 'Stype']  # want to ignore simple stellar type changes
@@ -97,13 +98,22 @@ def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=T
 
     set_font_params(use_latex)
 
-    # Configure 2x2 subplots, for masses, lengths, stellar types, and HR diagram (in order top to bottom left to right)
-    fig = plt.figure(figsize=(15, 8))  # W, H
-    ax1 = fig.add_subplot(2, 2, 1)
-    ax2 = fig.add_subplot(2, 2, 2, sharex=ax1)
-    ax3 = fig.add_subplot(2, 2, 3, sharex=ax1)
-    ax4 = fig.add_subplot(2, 2, 4)
-    axes = [ax1, ax2, ax3, ax4]
+    # Configure subplots: 2x2 for standard plots, 2x3 when including spin plots
+    if show_spin:
+        fig = plt.figure(figsize=(18, 8))  # W, H
+        ax1 = fig.add_subplot(2, 3, 1)
+        ax2 = fig.add_subplot(2, 3, 2, sharex=ax1)
+        ax3 = fig.add_subplot(2, 3, 3, sharex=ax1)
+        ax4 = fig.add_subplot(2, 3, 4)
+        ax5 = fig.add_subplot(2, 3, 5)
+        axes = [ax1, ax2, ax3, ax4, ax5]
+    else:
+        fig = plt.figure(figsize=(15, 8))  # W, H
+        ax1 = fig.add_subplot(2, 2, 1)
+        ax2 = fig.add_subplot(2, 2, 2, sharex=ax1)
+        ax3 = fig.add_subplot(2, 2, 3, sharex=ax1)
+        ax4 = fig.add_subplot(2, 2, 4)
+        axes = [ax1, ax2, ax3, ax4]
 
     for ii, specificPlot in enumerate(listOfPlots):  # exclude the last one
 
@@ -112,7 +122,7 @@ def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=T
         # TODO: Set the reverse log scale for time
 
         # Plot the data
-        handles, labels = specificPlot(ax=ax, Data=Data, events=events, mask=mask, use_latex=use_latex, show_spin=show_spin, obvs_start=obvs_start, obvs_end=obvs_end, disc_start=disc_start, disc_end=disc_end)
+        handles, labels = specificPlot(ax=ax, Data=Data, events=events, mask=mask, use_latex=use_latex, show_spin=show_spin, obvs_start=obvs_start, obvs_end=obvs_end, disc_start=disc_start, disc_end=disc_end, fallback_fraction1=fallback_fraction1, fallback_fraction2=fallback_fraction2)
 
         # Add some breathing space at the top of the plot
         ymin, ymax = ax.get_ylim()
@@ -128,19 +138,19 @@ def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=T
                                                                                1] / 75)  # min_separation of xmax/50 was found to fit the letter sizes well
             for jj in range(num_events):
                 yOffsetFactor = 1.5 if (ax.get_yscale() == 'log') else 1.02
-                ax.text(x=spaced_out_event_times[jj], y=ax.get_ylim()[1] * yOffsetFactor, s=chr(
-                    ord('@') + 1 + jj))  # The unicode representation of the capital letters - works as long as there are less than 26 images to show
+                #ax.text(x=spaced_out_event_times[jj], y=ax.get_ylim()[1] * yOffsetFactor, s=chr(
+                    #ord('@') + 1 + jj))  # The unicode representation of the capital letters - works as long as there are less than 26 images to show
             ax.set_xlabel('Time / Myr')
 
         if handles is not None:
-            ax.legend(handles=handles, labels=labels, loc='center left', bbox_to_anchor=(1.03, 0.5), fancybox=True)
+            ax.legend(handles=handles, labels=labels, loc='center left', bbox_to_anchor=(1.03, 0.5), fancybox=True, framealpha=0)
 
     #### Finalize the boundaries, save, and show
     fig.suptitle('Detailed evolution for seed = {}'.format(Data['SEED'][()][0]), fontsize=18)
     fig.tight_layout(h_pad=1, w_pad=1, rect=(0.08, 0.08, .98, .98), pad=0.)  # (left, bottom, right, top)
 
     if outdir is not None:
-        safe_save_figure(fig, f'{outdir}/detailedEvolutionPlot.png', bbox_inches='tight', pad_inches=0, format='png')
+        safe_save_figure(fig, f'{outdir}/detailedEvolutionPlot.png', bbox_inches='tight', pad_inches=0, format='png', transparent=True)
     
     return fig
 
@@ -148,7 +158,7 @@ def makeDetailedPlots(Data=None, events=None, outdir='.', show=True, use_latex=T
 ######## Plotting functions
 
 
-def plotMassAttributes(ax=None, Data=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, **kwargs):
+def plotMassAttributes(ax=None, Data=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, fallback_fraction1=None, fallback_fraction2=None, **kwargs):
     ### Plot mass attributes
     # Create new column for total mass
     Mtot = Data['Mass(1)'][()][mask] + Data['Mass(2)'][()][mask]
@@ -174,7 +184,7 @@ def plotMassAttributes(ax=None, Data=None, mask=None, use_latex=True, obvs_start
     return ax.get_legend_handles_labels()
 
 
-def plotLengthAttributes(ax=None, Data=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, **kwargs):
+def plotLengthAttributes(ax=None, Data=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, fallback_fraction1=None, fallback_fraction2=None, **kwargs):
     ### Plot radius attributes
     ax.plot(Data['Time'][()][mask], Data['SemiMajorAxis'][()][mask], linestyle='-', c='k', label='Semi-Major Axis')
     ax.plot(Data['Time'][()][mask], Data['SemiMajorAxis'][()][mask] * (1 - Data['Eccentricity'][()][mask]), linestyle=':', c='k', label='Periapsis')
@@ -190,7 +200,7 @@ def plotLengthAttributes(ax=None, Data=None, mask=None, use_latex=True, obvs_sta
     ax.set_yscale('log')
 
     if (obvs_start is not None) and (obvs_end is not None): #biztodo - check this is right, add into the other functions. 
-        ax.axvspan(obvs_start, obvs_end, color='g', alpha=0.3, label='Observable window')
+        ax.axvspan(obvs_start, obvs_end, color='g', alpha=0.5, label='Observable window')
 
     if (disc_start is not None) and (disc_end is not None):
         ax.axvspan(disc_start, disc_end, color='g', alpha=0.3, label='disc formed')
@@ -229,9 +239,9 @@ def plotStellarTypeAttributes(ax=None, Data=None, mask=None, use_latex=True, **k
     return ax.get_legend_handles_labels()
 
 
-def plotStellarTypeAttributesAndEccentricity(ax=None, Data=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, **kwargs):
+def plotStellarTypeAttributesAndEccentricity(ax=None, Data=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, fallback_fraction1=None, fallback_fraction2=None, **kwargs):
     ax1 = ax
-    ax2 = ax.twinx()
+    #ax2 = ax.twinx()
 
     ### Plot stellar types
     stellarTypes, useTypes, typeNameMap = getStellarTypes(Data)
@@ -254,18 +264,18 @@ def plotStellarTypeAttributesAndEccentricity(ax=None, Data=None, mask=None, use_
 
 
     # Grid
-    ax2.yaxis.grid(False)
+    #ax2.yaxis.grid(False)
 
     if (obvs_start is not None) and (obvs_end is not None): #biztodo - check this is right, add into the other functions. 
-        ax1.axvspan(obvs_start, obvs_end, color='g', alpha=0.3, label='Observable window')
+        ax1.axvspan(obvs_start, obvs_end, color='g', alpha=0.5, label='Observable window')
     if (disc_start is not None) and (disc_end is not None):
         ax1.axvspan(disc_start, disc_end, color='g', alpha=0.3, label='disc formed')
 
     # Legend
     handles, labels = ax1.get_legend_handles_labels()
-    handles2, labels2 = ax2.get_legend_handles_labels()
-    handles.extend(handles2)
-    labels.extend(labels2)
+    #handles2, labels2 = ax2.get_legend_handles_labels()
+    #handles.extend(handles2)
+    #labels.extend(labels2)
     ax.legend(handles=handles, labels=labels)
 
     return handles, labels
@@ -352,6 +362,8 @@ def plotHertzsprungRussell(ax=None, Data=None, events=None, mask=None, use_latex
 
     return ax.get_legend_handles_labels()
 
+
+
 #biz - include here the spin plot, then include this into the main plotter with spin as an option instead of temp?? 
 def calculate_dimensionless_spin(mass, ang_momentum):
     # Calculate the dimensionless spin parameter chi = cJ/GM^2 
@@ -366,8 +378,61 @@ def calculate_dimensionless_spin(mass, ang_momentum):
 
     return chi.decompose().value
 
+def plotAngMom(ax=None, Data=None, events=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, fallback_fraction1=None, fallback_fraction2=None, **kwargs):
+    #Plotting angular momentum evolution with time for both stars, with the same event markers as the other plots.
 
-def plotSpin(ax=None, Data=None, events=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, **kwargs):
+    #first extract needed values from detailed outputs.
+    mass1 = Data['Mass(1)'][()][mask]
+    mass2 = Data['Mass(2)'][()][mask]
+    ang1 = Data['Ang_Momentum(1)'][()][mask]
+    ang2 = Data['Ang_Momentum(2)'][()][mask]
+    st1 = Data['Stellar_Type(1)'][()][mask]
+    st2 = Data['Stellar_Type(2)'][()][mask]
+    # Apply fallback fraction reductions only for timesteps where the star is a compact object (NS/BH)
+    if fallback_fraction1 is not None:
+        bh_mask1 = np.isin(st1, [13, 14])
+        if np.any(bh_mask1):
+            ang1 = ang1.copy()
+            ang1[bh_mask1] = ang1[bh_mask1] * fallback_fraction1
+        
+
+    if fallback_fraction2 is not None:
+        bh_mask2 = np.isin(st2, [13, 14])
+        if np.any(bh_mask2):
+            ang2 = ang2.copy()
+            ang2[bh_mask2] = ang2[bh_mask2] * fallback_fraction2
+
+    ax.plot(Data['Time'][()][mask], ang1, linestyle='-', c='r', label='Star 1')
+    ax.plot(Data['Time'][()][mask], ang2, linestyle='-', c='b', label='Star 2')
+    if use_latex:
+        ax.set_ylabel(r'Angular Momentum [Msun au^2 yr^-1]') #todo check units 
+    else:
+        ax.set_ylabel('Angular Momentum [Msun au^2 yr^-1]') 
+    ax.set_xlabel('Time / Myr')
+    ax.set_yscale('symlog', linthresh=1e-10) #biz - adding log scale if this helps? (sym log)
+
+    #add event markers as in the other plots 
+    event_times = [event.time for event in events]
+    num_events = len(event_times)
+    spaced_out_event_times = space_out(event_times, min_separation=ax.get_xlim()[1] / 75)
+    
+    for jj in range(num_events):
+        yOffsetFactor = 1.5 if (ax.get_yscale() == 'log') else 1.02
+        ax.text(x=spaced_out_event_times[jj], y=ax.get_ylim()[1] * yOffsetFactor, s=chr(
+            ord('@') + 1 + jj))  # The unicode representation of the capital letters - works as long as there are less than 26 images to show
+    
+    ax.legend(framealpha=1, prop={'size': 8})
+    ax.grid(linestyle=':', c='gray')
+
+    if (obvs_start is not None) and (obvs_end is not None): #biztodo 
+        ax.axvspan(obvs_start, obvs_end, color='g', alpha=0.5, label='Observable window')
+    if (disc_start is not None) and (disc_end is not None):
+        ax.axvspan(disc_start, disc_end, color='g', alpha=0.3, label='disc formed')
+    
+    return ax.get_legend_handles_labels()
+
+
+def plotSpin(ax=None, Data=None, events=None, mask=None, use_latex=True, obvs_start=None, obvs_end=None, disc_start=None, disc_end=None, fallback_fraction1=None, fallback_fraction2=None, **kwargs):
     #Plotting spin evolution with time for both stars, with the same event markers as the other plots.
 
     dark2 = plt.get_cmap("Dark2").colors #biz - adding colour map to match my other plots changing 'r' to c3 and 'b' to c2 
@@ -380,6 +445,19 @@ def plotSpin(ax=None, Data=None, events=None, mask=None, use_latex=True, obvs_st
     ang2 = Data['Ang_Momentum(2)'][()][mask]
     st1 = Data['Stellar_Type(1)'][()][mask]
     st2 = Data['Stellar_Type(2)'][()][mask]
+
+    # Adjust angular momentum for fallback fractions only where the stellar type indicates a compact object
+    if fallback_fraction1 is not None:
+        bh_mask1 = np.isin(st1, [13, 14])
+        if np.any(bh_mask1):
+            ang1 = ang1.copy()
+            ang1[bh_mask1] = ang1[bh_mask1] * fallback_fraction1
+        
+    if fallback_fraction2 is not None:
+        bh_mask2 = np.isin(st2, [13, 14])
+        if np.any(bh_mask2):
+            ang2 = ang2.copy()
+            ang2[bh_mask2] = ang2[bh_mask2] * fallback_fraction2
 
     print('')
     print('test ang mom values')
@@ -420,14 +498,14 @@ def plotSpin(ax=None, Data=None, events=None, mask=None, use_latex=True, obvs_st
     
     for jj in range(num_events):
         yOffsetFactor = 1.5 if (ax.get_yscale() == 'log') else 1.02
-        ax.text(x=spaced_out_event_times[jj], y=ax.get_ylim()[1] * yOffsetFactor, s=chr(
-            ord('@') + 1 + jj))  # The unicode representation of the capital letters - works as long as there are less than 26 images to show
+        #ax.text(x=spaced_out_event_times[jj], y=ax.get_ylim()[1] * yOffsetFactor, s=chr(
+            #ord('@') + 1 + jj))  # The unicode representation of the capital letters - works as long as there are less than 26 images to show
     
     ax.legend(framealpha=1, prop={'size': 8})
     ax.grid(linestyle=':', c='gray')
 
     if (obvs_start is not None) and (obvs_end is not None): #biztodo 
-        ax.axvspan(obvs_start, obvs_end, color='g', alpha=0.3, label='Observable window')
+        ax.axvspan(obvs_start, obvs_end, color='g', alpha=0.5, label='Observable window')
     if (disc_start is not None) and (disc_end is not None):
         ax.axvspan(disc_start, disc_end, color='g', alpha=0.3, label='disc formed')
 
