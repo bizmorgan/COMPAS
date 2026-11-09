@@ -79,6 +79,7 @@ public:
     // getters - alphabetically
     double              Age() const                                                     { return m_Age; }
     double              AngularMomentum() const                                         { return m_AngularMomentum; }
+    double              angularMomentumAtCOFormation() const                            { return m_AngularMomentumAtCOFormation; }     //biz adding angular momentum of compact object - so this is including the fallback fraction
     bool                CHonMS() const                                                  { return m_CHE; }
     double              COCoreMass() const                                              { return m_COCoreMass; }
     double              CoreMass() const                                                { return m_CoreMass; }
@@ -720,6 +721,9 @@ protected:
      * If DEBUG_PERTURB is defined then perturbation is not disabled while debbuging.
      * To enable perturbation while DEBUG is enabled, define DEBUG_PERTURB.
      */
+
+    virtual void                InitialiseRemnantAngularMomentum() { }
+    virtual void                UpdateAngularMomentumByAccretion(const double p_MassGain, const double p_SpecificAngularMomentum) { }     // updating angular momentunm with accretion                                                            // initialising new angular momentum object 
     virtual void                PerturbLuminosityAndRadius() { }                                                                                                                                    // NO-OP
     virtual void                PerturbLuminosityAndRadiusAtPhaseEnd()                                                  { PerturbLuminosityAndRadiusOnPhase(); }                                    // Same as on phase
     virtual void                PerturbLuminosityAndRadiusOnPhase()                                                     { PerturbLuminosityAndRadius(); }

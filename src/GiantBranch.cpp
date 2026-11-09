@@ -1155,6 +1155,51 @@ double GiantBranch::CalculateMomentOfInertia() const {
     return (0.1 * (m_Mass - m_CoreMass) * m_Radius * m_Radius) + (0.21 * m_CoreMass * Rc * Rc);
 }
 
+/*
+* Calcualte effective fallback fraction for use in calcualting the angular momentum of a black hole
+* biztodo write description here 
+*/
+
+double GiantBranch::CalculateEffectiveFallbackFraction_Static(
+    const double p_PreSNMass,
+    const double p_CoreMass,
+    const double p_RemnantMass) {
+
+    if (p_PreSNMass <= 0.0) {
+        return 0.0;
+    }
+
+    const double shellMass = p_PreSNMass - p_CoreMass;
+
+    // This is the same fallback definition used in the Python code:
+    //
+    // fallback = (remnant_mass - core_mass) / shell_mass
+    //
+    // If there is no envelope/shell, the quantity is undefined.
+    if (shellMass <= 0.0) {
+        return 0.0;
+    }
+
+    const double fallbackFraction =
+        (p_RemnantMass - p_CoreMass) / shellMass;
+
+    const double boundedFallbackFraction =
+        std::max(0.0, std::min(1.0, fallbackFraction));
+
+    // This reproduces:
+    //
+    // (core_mass + fallback * shell_mass) / preSN_mass
+    //
+    // while retaining the bounded fallback fraction.
+    const double effectiveFallbackFraction =
+        (p_CoreMass +
+         boundedFallbackFraction * shellMass) / p_PreSNMass;
+
+    return std::max(
+        0.0,
+        std::min(1.0, effectiveFallbackFraction));
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -2240,6 +2285,7 @@ STELLAR_TYPE GiantBranch::ResolveSupernova() {
         m_SupernovaDetails.COCoreMassAtCOFormation = m_COCoreMass;
         m_SupernovaDetails.coreMassAtCOFormation   = m_CoreMass;
         m_SupernovaDetails.coreRadiusAtCOFormation = CalculateConvectiveCoreRadius();
+        m_SupernovaDetails.angularMomentumAtCOFormation = m_AngularMomentum;                        // adding in angular momentum here - to save before a compact object is formed 
 
         double snMass = CalculateInitialSupernovaMass();                                            // calculate SN initial mass
         
@@ -2283,3 +2329,4 @@ STELLAR_TYPE GiantBranch::ResolveSupernova() {
 
     return stellarType;
 }
+

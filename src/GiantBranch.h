@@ -80,6 +80,7 @@ protected:
             double          CalculateFallbackFractionDelayed(const double p_PreSNMass, const double p_ProtoMass, const double p_COCoreMass);
             double          CalculateFallbackFractionRapid(const double p_PreSNMass, const double p_ProtoMass, const double p_COCoreMass);
             double          CalculateFallbackMass(const double p_PreSNMass, const double p_ProtoMass, const double p_Fallback);
+    static  double          CalculateEffectiveFallbackFraction_Static(const double p_PreSNMass,const double p_CoreMass,const double p_RemnantMass); //effective fallback os for calculations of angualr momentum in the compact objects. 
             double          CalculateGravitationalRemnantMass(const double p_BaryonicRemnantMass);
             double          CalculateProtoCoreMassDelayed(const double p_COCoreMass);
             double          CalculateRemnantMassByBelczynski2002(const double p_Mass, const double p_COCoreMass, const double p_FallbackFraction);

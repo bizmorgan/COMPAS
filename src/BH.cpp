@@ -102,3 +102,67 @@ DBL_DBL_DBL BH::CalculateCoreCollapseSNParams_Static(const double p_Mass) {
 
     return vK;
 }
+
+/*
+ * Calculate the initial angular momentum of a black hole based on the angular momentum of its progenitor and the fallback fraction
+ *
+ * double CalculateInitialAngularMomentum_Static(const double p_ProgenitorAngularMomentum, const double p_FallbackFraction)
+ *
+ * @param   [IN]    p_ProgenitorAngularMomentum  Angular momentum of the progenitor star in Msol * AU^2 / yr
+ * @param   [IN]    p_FallbackFraction           Fraction of mass that falls back onto the proto-compact object
+ * @return                                      Initial angular momentum of the black hole in Msol * AU^2 / yr
+ */
+
+ double BH::CalculateInitialAngularMomentum_Static(
+    const double p_ProgenitorAngularMomentum,
+    const double p_FallbackFraction) { //this need to be replaced with my new effective fallback 
+
+    const double fallbackFraction =
+        std::max(0.0, std::min(1.0, p_FallbackFraction));
+
+    return fallbackFraction * p_ProgenitorAngularMomentum; //simple for now, will need to apply that this is on the disk. 
+}
+
+void BH::InitialiseRemnantAngularMomentum() {
+
+    const double progenitorAngularMomentum =
+        m_SupernovaDetails.angularMomentumAtCOFormation;
+
+    const double effectivefallbackFraction =
+        GiantBranch::CalculateEffectiveFallbackFraction_Static(
+            m_SupernovaDetails.preSNMass,
+            m_SupernovaDetails.coreMass,
+            m_SupernovaDetails.remnantMass); //biztodo check this 
+
+    m_AngularMomentum =
+        CalculateInitialAngularMomentum_Static(
+            progenitorAngularMomentum,
+            effectivefallbackFraction);
+
+    // Prevent small numerical negative values
+    m_AngularMomentum = std::max(m_AngularMomentum, 0.0);
+}
+
+void BH::UpdateAngularMomentumByAccretion(
+    const double p_MassGain,
+    const double p_SpecificAngularMomentum) {
+
+    if (p_MassGain <= 0.0) return; //biztodo check. no accretion, no change in angular momentum. 
+
+    const double angularMomentumGain =
+        p_MassGain * p_SpecificAngularMomentum;
+
+    SetAngularMomentum(
+        AngularMomentum() + angularMomentumGain);
+}
+
+double BH::CalculateSpecificAngularMomentum_Static(
+    const double p_EtaJ,
+    const double p_OrbitalAngularVelocity,
+    const double p_AccretionRadius) {
+
+    return p_EtaJ *
+           p_OrbitalAngularVelocity *
+           p_AccretionRadius *
+           p_AccretionRadius;
+} //biztodo can this just go at the end? check against H&M 

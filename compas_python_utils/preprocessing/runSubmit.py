@@ -22,7 +22,7 @@ class pythonProgramOptions:
     """
 
     def __init__(self, config_file=DEFAULT_CONFIG_FILE, grid_filename=None,
-                 random_seed_filename='randomSeed.txt', output_directory=None):
+                 random_seed_filename='randomSeed.txt', output_directory='vltflames_tideskapil_che', output_path='compas_python_utils/preprocessing/outputs/highspin'):
         # Do './COMPAS --help' to see all options
         # -- Define variables
 
@@ -82,7 +82,12 @@ class pythonProgramOptions:
         compas_logs_output_override = os.environ.get('COMPAS_LOGS_OUTPUT_DIR_PATH')
 
         if (compas_logs_output_override is None):
-            self.stringChoices['--output-path'] = os.getcwd()
+            # Convert relative path to absolute path if needed
+            if output_path.startswith('/'):
+                output_path_abs = output_path
+            else:
+                output_path_abs = os.path.join(REPO_ROOT, output_path)
+            self.stringChoices['--output-path'] = output_path_abs
             # names the directory to be created and in which log files are created.  Default in COMPAS is "COMPAS_Output"
             self.stringChoices['--output-container'] = output_directory  
         else:

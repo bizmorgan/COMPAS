@@ -263,6 +263,11 @@ STELLAR_TYPE Star::UpdateAttributesAndAgeOneTimestep(const double p_DeltaMass,
     if (p_Switch && (stellarType != m_Star->StellarType())) {                               // switch to new stellar type if necessary?
         STELLAR_TYPE stellarTypePrev = SwitchTo(stellarType);                               // yes - switch
         m_Star->SetStellarTypePrev(stellarTypePrev);                                        // record previous stellar type
+
+        // Initialize BH angular momentum after the BH object exists - biz notes does this need to be done another way? why do other evolutionary timesteps not need specific sections like this? 
+        if (m_Star->StellarType() == STELLAR_TYPE::BLACK_HOLE) {
+            m_Star->InitialiseRemnantAngularMomentum();
+        }
         
         // recalculate stellar attributes after switching if necessary - transition may not be continuous
         // this is a bit of a kludge just for CH -> HeMS  JR: should revisit the best way to do this

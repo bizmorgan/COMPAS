@@ -74,6 +74,7 @@ public:
     // getters - alphabetically
     double              Age() const                                                                                 { return m_Star->Age(); }
     double              AngularMomentum() const                                                                     { return m_Star->AngularMomentum(); }
+    double              AngularMomentumAtCOFormation() const                                                        {return m_Star->AngularMomentumAtCOFormation();} // angular momentum at compact object formation - so this is including the fallback fraction 
     double              CalculateCriticalMassRatio(const bool p_AccretorIsDegenerate, 
                                                    const double p_massTransferEfficiencyBeta) const                 { return m_Star->CalculateCriticalMassRatio(p_AccretorIsDegenerate, p_massTransferEfficiencyBeta); }
     double              CalculateCriticalMassRatioClaeys14(const bool p_AccretorIsDegenerate) const                 { return m_Star->CalculateCriticalMassRatioClaeys14(p_AccretorIsDegenerate); }
@@ -145,7 +146,9 @@ public:
 
     
     // setters
+    void                InitialiseRemnantAngularMomentum()                                                          { m_Star->InitialiseRemnantAngularMomentum(); }
     void                SetAngularMomentum(double p_AngularMomentum)                                                { m_Star->SetAngularMomentum(p_AngularMomentum); }
+    void                UpdateAngularMomentumByAccretion(const double p_MassGain, const double p_SpecificAngularMomentum)                     { m_Star->UpdateAngularMomentumByAccretion(p_MassGain, p_SpecificAngularMomentum); }           //only BHs should do this so need to update in BaseStar                                                               
     void                SetOmega(double p_Omega)                                                                    { m_Star->SetOmega(p_Omega); }
     void                SetObjectId(const OBJECT_ID p_ObjectId)                                                     { m_ObjectId = p_ObjectId; }
     void                SetPersistence(const OBJECT_PERSISTENCE p_Persistence)                                      { m_ObjectPersistence = p_Persistence; }

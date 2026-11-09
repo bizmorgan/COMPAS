@@ -169,6 +169,7 @@ BaseStar::BaseStar(const unsigned long int p_RandomSeed,
     m_SupernovaDetails.events.current          = SN_EVENT::NONE;
     m_SupernovaDetails.events.past             = SN_EVENT::NONE;
 
+    m_SupernovaDetails.angularMomentumAtCOFormation = DEFAULT_INITIAL_DOUBLE_VALUE;
     m_SupernovaDetails.coreMassAtCOFormation   = DEFAULT_INITIAL_DOUBLE_VALUE;
     m_SupernovaDetails.coreRadiusAtCOFormation = DEFAULT_INITIAL_DOUBLE_VALUE;
     m_SupernovaDetails.COCoreMassAtCOFormation = DEFAULT_INITIAL_DOUBLE_VALUE;
@@ -181,6 +182,7 @@ BaseStar::BaseStar(const unsigned long int p_RandomSeed,
 
     m_SupernovaDetails.isHydrogenPoor          = false;
     m_SupernovaDetails.fallbackFraction        = DEFAULT_INITIAL_DOUBLE_VALUE;
+    m_SupernovaDetails.effectiveFallbackFraction = DEFAULT_INITIAL_DOUBLE_VALUE;            //used in compact object calculations
 
     m_SupernovaDetails.eccentricAnomaly        = DEFAULT_INITIAL_DOUBLE_VALUE;
     m_SupernovaDetails.trueAnomaly             = DEFAULT_INITIAL_DOUBLE_VALUE;

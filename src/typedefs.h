@@ -1164,6 +1164,7 @@ typedef struct SupernovaDetails {                           // Holds attributes,
 
     KickParameters initialKickParameters;                   // User-supplied initial kick parameters - if present used in place of drawing randomly/from distributions
     
+    double         angularMomentumAtCOFormation;            // Angular momentum of the star when it formed a compact object
     double         coreMassAtCOFormation;                   // Core mass of this star when it formed a compact object
     double         coreRadiusAtCOFormation;                 // Core radius of this star when it formed a compact object
     double         COCoreMassAtCOFormation;                 // Carbon Oxygen core mass of the star when it goes supernova and forms a compact object
@@ -1171,6 +1172,7 @@ typedef struct SupernovaDetails {                           // Holds attributes,
     double         eccentricAnomaly;                        // Eccentric anomaly at instataneous time of the SN
     SNEventsT      events;                                  // Record of supernova events undergone by the star
     double         fallbackFraction;                        // Fallback fraction during a supernova event
+    double         effectivefallbackFraction;               // Effective fallback fraction during a supernova event (used in remnant mass calculations)
     double         HeCoreMassAtCOFormation;                 // Helium core mass of the star when it goes supernova and forms a compact object
     bool           isHydrogenPoor;                          // Flag to indicate if exploding star is hydrogen-poor. We consider an H-rich star all SN progenitors that have an H envelope, otherwise H-poor
     double         kickMagnitude;                           // Kick magnitude the system received during the supernova (km s^-1)

@@ -1372,8 +1372,8 @@ class determine_high_spin_post_sn(object):
 
         results.sort(key=lambda x: x["spin"], reverse=True)
 
-        print("Top 3 spin systems:")
-        for row in results[:3]: #printing the top 3 spin systems
+        print("Top 5 spin systems:")
+        for row in results[:5]: #printing the top 5 spin systems
             print(row)
 
         return results

@@ -42,8 +42,23 @@ public:
      
     static  double      ReweightSupernovaKickByMass_Static(const double p_vK, const double p_FallbackFraction, const double p_BlackHoleMass);
    
+    static double       CalculateSpecificAngularMomentum_Static(const double p_EtaJ, const double p_OrbitalAngularVelocity, const double p_AccretionRadius); //biztodo update this as i go - why these? check H&M paper
+
+    double              BHAngularMomentum() const                                         { return m_BHAngularMomentum; }
+
+    void InitialiseRemnantAngularMomentum() override;
+
+    static double CalculateSpecificAngularMomentum_Static(const double p_EtaJ, const double p_OrbitalAngularVelocity, const double p_AccretionRadius); //biztodo update this as i go - why these? check H&M paper
+
+    void UpdateAngularMomentumByAccretion(
+        const double p_MassGain,
+        const double p_SpecificAngularMomentum) override; //updating the angular momentum each timestep, accreting matter will spin up/down the BH. Using definitions from Hirai and Mandel. override should mean this is only applied to BHs
+    
     
 protected:
+
+    double                  m_BHAngularMomentum;                          // Angular Momentum (Msol * AU^2 / yr)
+
     
     void Initialise() {
 
@@ -57,6 +72,9 @@ protected:
         EvolveOnPhase(0.0);
     }
     
+    static double CalculateInitialAngularMomentum_Static(
+        const double p_ProgenitorAngularMomentum,
+        const double p_FallbackFraction);
     
     // member functions - alphabetically
     double  CalculateConvergedMassStepZetaNuclear() const                           { return 0.0; }
